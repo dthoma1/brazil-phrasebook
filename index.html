@@ -46,11 +46,51 @@
   .play-btn:active { transform: scale(.95); }
   .play-btn.playing { background: linear-gradient(135deg, #ffdf00, #e6c700); color: #002776; }
   .note { text-align: center; color: rgba(255,255,255,.7); margin-top: 32px; font-size: .85rem; }
+  .add-form {
+    max-width: 860px; margin: 0 auto 24px; background: rgba(255,255,255,.95);
+    border-radius: 14px; padding: 20px; box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  }
+  .add-form h2 { font-size: 1.1rem; color: #002776; margin-bottom: 12px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .add-form input, .add-form select {
+    padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px;
+    font-size: .95rem; font-family: inherit; transition: .2s;
+  }
+  .add-form input:focus, .add-form select:focus {
+    outline: none; border-color: #009c3b;
+  }
+  .add-form button {
+    width: 100%; padding: 12px; background: linear-gradient(135deg, #009c3b, #006b2b);
+    color: #fff; border: none; border-radius: 8px; font-size: 1rem;
+    font-weight: 600; cursor: pointer; transition: .2s;
+  }
+  .add-form button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,156,59,.4); }
+  .add-form button:active { transform: translateY(0); }
+  .toggle-form {
+    max-width: 860px; margin: 0 auto 16px; text-align: center;
+  }
+  .toggle-form button {
+    background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.35);
+    color: #fff; padding: 8px 20px; border-radius: 20px; cursor: pointer;
+    font-size: .9rem; transition: .2s;
+  }
+  .toggle-form button:hover { background: rgba(255,255,255,.3); }
+  .delete-btn {
+    width: 36px; height: 36px; border-radius: 50%; border: none;
+    background: #f44336; color: #fff; font-size: 1.1rem; cursor: pointer;
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    transition: .2s;
+  }
+  .delete-btn:hover { transform: scale(1.1); }
+  .delete-btn:active { transform: scale(.95); }
+  .tag.custom { background: #fff3e0; color: #e65100; }
   @media (max-width: 500px) {
     body { padding: 14px; }
     h1 { font-size: 1.5rem; }
     .card { padding: 14px; gap: 12px; }
     .pt { font-size: 1.05rem; }
+    .form-row { grid-template-columns: 1fr; }
+    .add-form { padding: 16px; }
   }
 </style>
 </head>
@@ -58,6 +98,32 @@
 
 <h1>🇧🇷 Brazil Travel Phrase Book</h1>
 <p class="subtitle">Tap 🔊 to hear each phrase in Brazilian Portuguese</p>
+
+<div class="toggle-form">
+  <button onclick="toggleAddForm()">➕ Add Your Own Phrase</button>
+</div>
+
+<div class="add-form" id="addForm" style="display: none;">
+  <h2>Add Custom Phrase</h2>
+  <div class="form-row">
+    <input type="text" id="inputPt" placeholder="Portuguese phrase" required>
+    <input type="text" id="inputEn" placeholder="English translation" required>
+  </div>
+  <div class="form-row">
+    <select id="inputCat">
+      <option value="Custom">Custom</option>
+      <option value="Essentials">Essentials</option>
+      <option value="Language">Language</option>
+      <option value="Deflecting">Deflecting</option>
+      <option value="Getting Around">Getting Around</option>
+      <option value="Food & Drink">Food & Drink</option>
+      <option value="Emergencies">Emergencies</option>
+      <option value="Hotel">Hotel</option>
+      <option value="Social">Social</option>
+    </select>
+    <button onclick="addPhrase()">Add Phrase</button>
+  </div>
+</div>
 
 <div class="filters" id="filters"></div>
 <div class="grid" id="grid"></div>
@@ -162,7 +228,11 @@ const phrases = [
   { pt: "Valeu!", en: "Thanks! (informal)", cat: "Social" },
 ];
 
-const categories = [...new Set(phrases.map(p => p.cat))];
+// Load custom phrases from localStorage
+let customPhrases = JSON.parse(localStorage.getItem('customPhrases') || '[]');
+const allPhrases = [...phrases, ...customPhrases];
+
+const categories = [...new Set(allPhrases.map(p => p.cat))];
 
 // Build filter buttons
 const filtersEl = document.getElementById('filters');
@@ -178,21 +248,57 @@ categories.forEach(cat => {
   filtersEl.appendChild(btn);
 });
 
+function toggleAddForm() {
+  const form = document.getElementById('addForm');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+function addPhrase() {
+  const pt = document.getElementById('inputPt').value.trim();
+  const en = document.getElementById('inputEn').value.trim();
+  const cat = document.getElementById('inputCat').value;
+  
+  if (!pt || !en) {
+    alert('Please fill in both Portuguese and English fields');
+    return;
+  }
+  
+  const newPhrase = { pt, en, cat, custom: true };
+  customPhrases.push(newPhrase);
+  localStorage.setItem('customPhrases', JSON.stringify(customPhrases));
+  
+  // Clear form
+  document.getElementById('inputPt').value = '';
+  document.getElementById('inputEn').value = '';
+  document.getElementById('inputCat').value = 'Custom';
+  
+  // Reload page to update categories and filters
+  location.reload();
+}
+
+function deletePhrase(index) {
+  if (confirm('Delete this custom phrase?')) {
+    customPhrases.splice(index, 1);
+    localStorage.setItem('customPhrases', JSON.stringify(customPhrases));
+    location.reload();
+  }
+}
+
 function render(filter) {
   document.querySelectorAll('.filters button').forEach(b => {
     b.classList.toggle('active', b.textContent === filter);
   });
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
-  const list = filter === 'All' ? phrases : phrases.filter(p => p.cat === filter);
-  list.forEach(p => {
+  const list = filter === 'All' ? allPhrases : allPhrases.filter(p => p.cat === filter);
+  list.forEach((p, idx) => {
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
       <div class="text">
         <div class="pt">${p.pt}</div>
         <div class="en">${p.en}</div>
-        <span class="tag">${p.cat}</span>
+        <span class="tag ${p.custom ? 'custom' : ''}">${p.cat}</span>
       </div>
     `;
     const btn = document.createElement('button');
@@ -201,6 +307,18 @@ function render(filter) {
     btn.innerHTML = '🔊';
     btn.onclick = () => speak(p.pt, btn);
     card.appendChild(btn);
+    
+    // Add delete button for custom phrases
+    if (p.custom) {
+      const delBtn = document.createElement('button');
+      delBtn.className = 'delete-btn';
+      delBtn.setAttribute('aria-label', 'Delete phrase');
+      delBtn.innerHTML = '🗑️';
+      const customIdx = customPhrases.findIndex(cp => cp.pt === p.pt && cp.en === p.en);
+      delBtn.onclick = () => deletePhrase(customIdx);
+      card.appendChild(delBtn);
+    }
+    
     grid.appendChild(card);
   });
 }
